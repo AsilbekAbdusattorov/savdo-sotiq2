@@ -15,27 +15,28 @@ const Home = () => {
     loadQuagga();
   }, [videoRef.current]);
 
-  // Kamera ishga tushirish
+  // 📸 Kamera ishga tushirish
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
+        video: { facingMode: "environment" }, // Old yoki orqa kamera
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
     } catch (error) {
-      console.error("Kameraga ruxsat berilmadi:", error);
-      alert("Iltimos, kameraga ruxsat bering!");
+      console.error("🚨 Kamera ishlamayapti:", error);
+      alert("Kameraga ruxsat bering!");
     }
   };
 
-  // QuaggaJS yuklash
+  // 📦 QuaggaJS yuklash
   const loadQuagga = () => {
     if (!videoRef.current) return;
 
     const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js";
+    script.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js";
     script.onload = () => {
       if (window.Quagga) {
         initQuagga();
@@ -44,7 +45,7 @@ const Home = () => {
     document.body.appendChild(script);
   };
 
-  // QuaggaJS boshlash
+  // 📡 QuaggaJS boshlash
   const initQuagga = () => {
     if (!window.Quagga || !videoRef.current) return;
 
@@ -56,12 +57,15 @@ const Home = () => {
           target: videoRef.current,
           constraints: { facingMode: "environment" },
         },
-        decoder: { readers: ["ean_reader", "code_128_reader"] },
+        decoder: {
+          readers: ["ean_reader", "code_128_reader", "upc_reader"], // Qo‘shimcha formatlar qo‘shildi
+        },
         locate: true,
+        halfSample: true, // Performance uchun
       },
       (err) => {
         if (err) {
-          console.error("QuaggaJS xatosi:", err);
+          console.error("🚨 QuaggaJS xatosi:", err);
           return;
         }
         window.Quagga.start();
@@ -70,39 +74,41 @@ const Home = () => {
 
     window.Quagga.onDetected((result) => {
       const scannedBarcode = result.codeResult.code;
-      console.log("Skan qilingan barcode:", scannedBarcode);
+      console.log("✅ Skanner topdi:", scannedBarcode);
       setBarcode(scannedBarcode);
       fetchProductData(scannedBarcode);
       window.Quagga.stop();
-      setTimeout(() => window.Quagga.start(), 1000); // Qayta skan qilish uchun 1 sek kechikish
+      setTimeout(() => window.Quagga.start(), 1000); // 1s keyin qayta skan
     });
   };
-
-  // 📌 JSON-dan mahsulot ma'lumotlarini olish
   const fetchProductData = async (barcode) => {
     try {
       const response = await fetch("https://savdo-sotiq.onrender.com/products");
       const data = await response.json();
+      console.log("📦 JSON dan kelgan data:", data); // 👈 Yangi qo‘shamiz
+
       const foundProduct = data.find((item) => item.barcode === barcode);
+      console.log("🔎 Topilgan mahsulot:", foundProduct); // 👈 Yangi qo‘shamiz
+
       if (foundProduct) {
         setProduct(foundProduct);
         setTotalPrice(foundProduct.price * quantity);
       } else {
-        alert("Mahsulot topilmadi!");
+        alert("🚨 Mahsulot topilmadi!");
       }
     } catch (error) {
       console.error("JSON o‘qishda xatolik:", error);
     }
   };
 
-  // 🔄 Narxni yangilash
+  // 🏷 Narxni yangilash
   const handleQuantityChange = (e) => {
     const qty = parseInt(e.target.value, 10);
     setQuantity(qty);
     setTotalPrice(product.price * qty);
   };
 
-  // 📌 Sotish tugmasi bosilganda JSON-ga yozish
+  // 🛍 Sotish
   const handleSell = async () => {
     const saleData = {
       barcode: product.barcode,
@@ -120,35 +126,48 @@ const Home = () => {
       });
 
       if (response.ok) {
-        alert("Mahsulot sotildi!");
+        alert("✅ Mahsulot sotildi!");
         setBarcode("");
         setProduct(null);
         setQuantity(1);
         setTotalPrice(0);
-        window.Quagga.start(); // Yangi mahsulot skan qilish
+        window.Quagga.start();
       } else {
-        alert("Xatolik yuz berdi, qayta urinib ko‘ring!");
+        alert("🚨 Xatolik yuz berdi!");
       }
     } catch (error) {
-      console.error("Ma'lumotni saqlashda xatolik:", error);
+      console.error("Ma’lumot saqlashda xatolik:", error);
     }
   };
 
   return (
     <section className="max-w-lg mx-auto mt-10 p-6 border rounded-lg shadow-lg bg-white">
-      <h2 className="text-2xl font-semibold mb-5 text-center text-gray-700">📷 Barcode Skanner</h2>
+      <h2 className="text-2xl font-semibold mb-5 text-center text-gray-700">
+        📷 Barcode Skanner
+      </h2>
 
-      {/* Kamera */}
-      <video ref={videoRef} className="w-full h-60 border rounded-lg shadow-sm bg-black" autoPlay muted></video>
+      {/* 📸 Kamera */}
+      <video
+        ref={videoRef}
+        className="w-full h-60 border rounded-lg shadow-sm bg-black"
+        autoPlay
+        muted
+      ></video>
 
-      {/* Skaner natijasi */}
+      {/* 📦 Skan qilingan mahsulot */}
       {product && (
         <div className="mt-4 p-3 border rounded-lg bg-gray-100">
           <h3 className="text-lg font-semibold">{product.name}</h3>
-          <img src={product.image} alt={product.name} className="w-full h-40 object-cover rounded-lg mt-2" />
-          <p className="text-xl font-bold text-blue-600">Narxi: {product.price} so‘m</p>
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full h-40 object-cover rounded-lg mt-2"
+          />
+          <p className="text-xl font-bold text-blue-600">
+            Narxi: {product.price} so‘m
+          </p>
 
-          {/* Nechta sotib olish */}
+          {/* 🔢 Nechta sotib olish */}
           <label className="block mt-2">
             <span className="text-gray-600">Soni:</span>
             <input
@@ -160,10 +179,10 @@ const Home = () => {
             />
           </label>
 
-          {/* Jami narx */}
+          {/* 💰 Jami narx */}
           <p className="text-lg font-semibold mt-2">Jami: {totalPrice} so‘m</p>
 
-          {/* Sotish tugmasi */}
+          {/* ✅ Sotish tugmasi */}
           <button
             onClick={handleSell}
             className="w-full mt-3 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition"
