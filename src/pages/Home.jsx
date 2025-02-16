@@ -9,8 +9,11 @@ const Home = () => {
 
   useEffect(() => {
     startCamera();
-    loadQuagga();
   }, []);
+
+  useEffect(() => {
+    loadQuagga();
+  }, [videoRef.current]);
 
   // Kamera ishga tushirish
   const startCamera = async () => {
@@ -29,15 +32,21 @@ const Home = () => {
 
   // QuaggaJS yuklash
   const loadQuagga = () => {
+    if (!videoRef.current) return;
+
     const script = document.createElement("script");
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js";
-    script.onload = initQuagga;
+    script.onload = () => {
+      if (window.Quagga) {
+        initQuagga();
+      }
+    };
     document.body.appendChild(script);
   };
 
   // QuaggaJS boshlash
   const initQuagga = () => {
-    if (!window.Quagga) return;
+    if (!window.Quagga || !videoRef.current) return;
 
     window.Quagga.init(
       {
@@ -45,14 +54,9 @@ const Home = () => {
           name: "Live",
           type: "LiveStream",
           target: videoRef.current,
-          constraints: {
-            facingMode: "environment",
-          },
-          willReadFrequently: true,
+          constraints: { facingMode: "environment" },
         },
-        decoder: {
-          readers: ["ean_reader", "code_128_reader"],
-        },
+        decoder: { readers: ["ean_reader", "code_128_reader"] },
         locate: true,
       },
       (err) => {
@@ -64,19 +68,20 @@ const Home = () => {
       }
     );
 
-    // Skanerlangan barcode
     window.Quagga.onDetected((result) => {
       const scannedBarcode = result.codeResult.code;
+      console.log("Skan qilingan barcode:", scannedBarcode);
       setBarcode(scannedBarcode);
       fetchProductData(scannedBarcode);
       window.Quagga.stop();
+      setTimeout(() => window.Quagga.start(), 1000); // Qayta skan qilish uchun 1 sek kechikish
     });
   };
 
   // 📌 JSON-dan mahsulot ma'lumotlarini olish
   const fetchProductData = async (barcode) => {
     try {
-      const response = await fetch("https://savdo-sotiq.onrender.com/products"); // Mahsulotlar ro‘yxatini serverdan olish
+      const response = await fetch("https://savdo-sotiq.onrender.com/products");
       const data = await response.json();
       const foundProduct = data.find((item) => item.barcode === barcode);
       if (foundProduct) {
@@ -103,7 +108,7 @@ const Home = () => {
       barcode: product.barcode,
       name: product.name,
       price: product.price,
-      quantity: quantity,
+      quantity,
       total: totalPrice,
     };
 
@@ -120,7 +125,7 @@ const Home = () => {
         setProduct(null);
         setQuantity(1);
         setTotalPrice(0);
-        startCamera(); // Kamera qayta ishga tushsin
+        window.Quagga.start(); // Yangi mahsulot skan qilish
       } else {
         alert("Xatolik yuz berdi, qayta urinib ko‘ring!");
       }
